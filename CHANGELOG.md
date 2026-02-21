@@ -1,3 +1,12 @@
+## 1.0.0 (2026-02-21)
+
+### Features
+
+* add automated release management workflow ([6856459](https://github.com/Stellar-Teye/Teye-Contracts/commit/6856459e18c1000b2121171b11112bb64f5aaa8e))
+* implement event monitoring system ([d6f6c25](https://github.com/Stellar-Teye/Teye-Contracts/commit/d6f6c2546805cfb0b92f42fd455f08f7793b98b8))
+* implement role based access control ([ef86cbf](https://github.com/Stellar-Teye/Teye-Contracts/commit/ef86cbf68b3db9a246901c06e146824d01d7c2cf))
+* initial project scaffolding for Stellar-Teye vision care platform ([aca3c01](https://github.com/Stellar-Teye/Teye-Contracts/commit/aca3c015fa100b765343bac881beffd165deb2e2))
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
