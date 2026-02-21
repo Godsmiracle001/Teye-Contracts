@@ -138,15 +138,21 @@ fn test_role_delegation_expiration() {
     let delegatee = create_test_user(&ctx, Role::Patient, "Delegatee");
 
     ctx.env.ledger().set_timestamp(100);
-    let expire_at = 50;
+    let expire_at = 100;
     ctx.client
-        .delegate_role(&delegator, &delegatee, &Role::Patient, &expire_at);
+        .delegate_role(&delegator, &delegatee, &Role::Optometrist, &expire_at);
 
     let doctor = create_test_user(&ctx, Role::Optometrist, "Doc");
     let result =
         ctx.client
             .try_grant_access(&delegatee, &delegator, &doctor, &AccessLevel::Read, &3600);
-    assert!(result.is_err());
+    assert!(result.is_err()); // `>=` mutant killed here since exact == fails access
+
+    ctx.env.ledger().set_timestamp(99);
+    let result2 =
+        ctx.client
+            .try_grant_access(&delegatee, &delegator, &doctor, &AccessLevel::Read, &3600);
+    assert!(result2.is_ok()); // `<` mutant killed here since strictly less than is allowed
 
     // Test infinite duration `expires_at == 0` bound
     ctx.client

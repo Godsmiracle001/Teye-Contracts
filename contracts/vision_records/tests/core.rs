@@ -158,3 +158,38 @@ fn test_add_record_unauthorized_and_admin() {
     );
     assert!(admin_res.is_ok());
 }
+
+#[test]
+fn test_events_and_version() {
+    use soroban_sdk::testutils::Events;
+    let ctx = setup_test_env();
+
+    // Test base version mutant `result -> 0`
+    assert_eq!(ctx.client.version(), 1);
+
+    assert_eq!(ctx.client.version(), 1);
+
+    // Test initialization event by creating a fresh contract instance
+    let contract_id2 = ctx.env.register(vision_records::VisionRecordsContract, ());
+    let client2 = vision_records::VisionRecordsContractClient::new(&ctx.env, &contract_id2);
+    client2.initialize(&ctx.admin);
+    assert_eq!(ctx.env.events().all().len(), 1); // Kills publish_initialized missed mutant
+
+    // Test register user event
+    let user = Address::generate(&ctx.env);
+    ctx.client.register_user(&ctx.admin, &user, &Role::Patient, &String::from_str(&ctx.env, "Patient Profile"));
+    assert_eq!(ctx.env.events().all().len(), 1); // Kills publish_user_registered mutant
+
+    // Test add record event
+    let provider = create_test_user(&ctx, Role::Optometrist, "Provider");
+    let hash = String::from_str(&ctx.env, "Hash123");
+    ctx.client.add_record(&provider, &user, &provider, &RecordType::Examination, &hash);
+    assert_eq!(ctx.env.events().all().len(), 1); // Kills publish_record_added mutant
+
+    // Test access grant/revoke event
+    ctx.client.grant_access(&user, &user, &provider, &AccessLevel::Read, &86400);
+    assert_eq!(ctx.env.events().all().len(), 1); // Kills publish_access_granted mutant
+
+    ctx.client.revoke_access(&user, &provider);
+    assert_eq!(ctx.env.events().all().len(), 1); // Kills publish_access_revoked mutant
+}
