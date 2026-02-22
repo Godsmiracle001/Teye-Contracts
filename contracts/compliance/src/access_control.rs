@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)] 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Role {
     Admin,
     Clinician,
@@ -56,6 +56,7 @@ impl AccessControl {
                 _ => false,
             }
         } else {
-            false 
+            false
+        }
     }
 }

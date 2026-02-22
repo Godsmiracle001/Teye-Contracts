@@ -125,7 +125,7 @@ proptest! {
         for i in 0..n_records {
             let hash = String::from_str(&env, "QmCountHash");
             client.add_record(&_admin, &patient, &provider, &RecordType::Diagnosis, &hash);
-            prop_assert_eq!(client.get_record_count(), (i + 1) as u64);
+            prop_assert_eq!(client.get_record_count(), i.saturating_add(1) as u64);
         }
     }
 
