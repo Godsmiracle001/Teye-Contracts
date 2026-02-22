@@ -62,15 +62,8 @@ pub fn compute_reward_per_token(
 /// * `user_rpt_paid` – the snapshot taken at the user's last interaction
 /// * `user_earned`   – already-accumulated rewards not yet claimed
 #[allow(clippy::arithmetic_side_effects)]
-pub fn earned(
-    staked: i128,
-    current_rpt: i128,
-    user_rpt_paid: i128,
-    user_earned: i128,
-) -> i128 {
-    let new_rewards = staked
-        .saturating_mul(current_rpt.saturating_sub(user_rpt_paid))
-        / PRECISION;
+pub fn earned(staked: i128, current_rpt: i128, user_rpt_paid: i128, user_earned: i128) -> i128 {
+    let new_rewards = staked.saturating_mul(current_rpt.saturating_sub(user_rpt_paid)) / PRECISION;
 
     user_earned.saturating_add(new_rewards)
 }

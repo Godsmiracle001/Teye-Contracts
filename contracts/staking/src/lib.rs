@@ -158,11 +158,7 @@ impl StakingContract {
     /// The staked balance is reduced immediately (preventing reward accrual
     /// on the queued amount) but tokens are only returned after the lock
     /// period via `withdraw`.
-    pub fn request_unstake(
-        env: Env,
-        staker: Address,
-        amount: i128,
-    ) -> Result<u64, ContractError> {
+    pub fn request_unstake(env: Env, staker: Address, amount: i128) -> Result<u64, ContractError> {
         Self::require_initialized(&env)?;
         staker.require_auth();
 
@@ -175,11 +171,7 @@ impl StakingContract {
 
         // 2. Verify the user has enough staked.
         let user_stake_key = (USER_STAKE, staker.clone());
-        let prev_stake: i128 = env
-            .storage()
-            .persistent()
-            .get(&user_stake_key)
-            .unwrap_or(0);
+        let prev_stake: i128 = env.storage().persistent().get(&user_stake_key).unwrap_or(0);
         if prev_stake < amount {
             return Err(ContractError::InsufficientBalance);
         }
