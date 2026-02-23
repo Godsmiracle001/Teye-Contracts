@@ -125,8 +125,8 @@ fn test_get_record_count_and_patient_records() {
     let patient_records = ctx.client.get_patient_records(&patient);
     assert_eq!(patient_records.len(), 2);
     // Validate returned record IDs
-    assert_eq!(patient_records.get(0).unwrap(), 1);
-    assert_eq!(patient_records.get(1).unwrap(), 2);
+    assert_eq!(patient_records.get(0).unwrap_or(0), 1);
+    assert_eq!(patient_records.get(1).unwrap_or(0), 2);
 }
 
 #[test]
