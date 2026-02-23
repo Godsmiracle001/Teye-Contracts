@@ -1,4 +1,4 @@
-use crate::{AccessLevel, RecordType, Role};
+use crate::{AccessLevel, RecordType, Role, VerificationStatus};
 use soroban_sdk::{symbol_short, Address, Env, String};
 
 /// Event published when the contract is initialized.
@@ -114,6 +114,71 @@ pub fn publish_access_revoked(env: &Env, patient: Address, grantee: Address) {
     let data = AccessRevokedEvent {
         patient,
         grantee,
+        timestamp: env.ledger().timestamp(),
+    };
+    env.events().publish(topics, data);
+}
+
+#[soroban_sdk::contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProviderRegisteredEvent {
+    pub provider: Address,
+    pub name: String,
+    pub provider_id: u64,
+    pub timestamp: u64,
+}
+
+#[soroban_sdk::contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProviderVerifiedEvent {
+    pub provider: Address,
+    pub verifier: Address,
+    pub status: VerificationStatus,
+    pub timestamp: u64,
+}
+
+#[soroban_sdk::contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProviderUpdatedEvent {
+    pub provider: Address,
+    pub timestamp: u64,
+}
+
+pub fn publish_provider_registered(env: &Env, provider: Address, name: String, provider_id: u64) {
+    let topics = (symbol_short!("PROV_REG"), provider.clone());
+    let data = ProviderRegisteredEvent {
+        provider,
+        name,
+        provider_id,
+        timestamp: env.ledger().timestamp(),
+    };
+    env.events().publish(topics, data);
+}
+
+pub fn publish_provider_verified(
+    env: &Env,
+    provider: Address,
+    verifier: Address,
+    status: VerificationStatus,
+) {
+    let topics = (
+        symbol_short!("PROV_VER"),
+        provider.clone(),
+        verifier.clone(),
+    );
+    let data = ProviderVerifiedEvent {
+        provider,
+        verifier,
+        status,
+        timestamp: env.ledger().timestamp(),
+    };
+    env.events().publish(topics, data);
+}
+
+pub fn publish_provider_updated(env: &Env, provider: Address) {
+    let topics = (symbol_short!("PROV_UPD"), provider.clone());
+    let data = ProviderUpdatedEvent {
+        provider,
         timestamp: env.ledger().timestamp(),
     };
     env.events().publish(topics, data);

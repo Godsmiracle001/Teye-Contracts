@@ -2,10 +2,13 @@
 pub mod rbac;
 
 pub mod events;
+pub mod provider;
 
 use soroban_sdk::{
     contract, contractimpl, contracttype, symbol_short, Address, Env, String, Symbol, Vec,
 };
+
+pub use provider::{Certification, License, Location, Provider, VerificationStatus};
 
 /// Storage keys for the contract
 const ADMIN: Symbol = symbol_short!("ADMIN");
@@ -84,6 +87,9 @@ pub enum ContractError {
     InvalidInput = 6,
     AccessDenied = 7,
     Paused = 8,
+    ProviderNotFound = 9,
+    ProviderAlreadyRegistered = 10,
+    InvalidVerificationStatus = 11,
 }
 
 #[contract]
@@ -370,6 +376,176 @@ impl VisionRecordsContract {
 
     pub fn check_permission(env: Env, user: Address, permission: Permission) -> bool {
         rbac::has_permission(&env, &user, &permission)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn register_provider(
+        env: Env,
+        caller: Address,
+        provider: Address,
+        name: String,
+        licenses: Vec<License>,
+        specialties: Vec<String>,
+        certifications: Vec<Certification>,
+        locations: Vec<Location>,
+    ) -> Result<u64, ContractError> {
+        caller.require_auth();
+
+        if !rbac::has_permission(&env, &caller, &Permission::ManageUsers) {
+            return Err(ContractError::Unauthorized);
+        }
+
+        if provider::get_provider(&env, &provider).is_some() {
+            return Err(ContractError::ProviderAlreadyRegistered);
+        }
+
+        let provider_id = provider::increment_provider_counter(&env);
+        provider::add_provider_id(&env, provider_id, &provider);
+
+        let provider_data = Provider {
+            address: provider.clone(),
+            name: name.clone(),
+            licenses: licenses.clone(),
+            specialties: specialties.clone(),
+            certifications: certifications.clone(),
+            locations: locations.clone(),
+            verification_status: VerificationStatus::Pending,
+            registered_at: env.ledger().timestamp(),
+            verified_at: None,
+            verified_by: None,
+            is_active: true,
+        };
+
+        provider::set_provider(&env, &provider_data);
+
+        for specialty in specialties.iter() {
+            provider::add_provider_to_specialty_index(&env, &specialty, &provider);
+        }
+
+        events::publish_provider_registered(&env, provider.clone(), name, provider_id);
+
+        Ok(provider_id)
+    }
+
+    pub fn verify_provider(
+        env: Env,
+        caller: Address,
+        provider: Address,
+        status: VerificationStatus,
+    ) -> Result<(), ContractError> {
+        caller.require_auth();
+
+        if !rbac::has_permission(&env, &caller, &Permission::ManageUsers) {
+            return Err(ContractError::Unauthorized);
+        }
+
+        let mut provider_data =
+            provider::get_provider(&env, &provider).ok_or(ContractError::ProviderNotFound)?;
+
+        if status == VerificationStatus::Pending {
+            return Err(ContractError::InvalidVerificationStatus);
+        }
+
+        provider_data.verification_status = status.clone();
+        provider_data.verified_at = Some(env.ledger().timestamp());
+        provider_data.verified_by = Some(caller.clone());
+
+        provider::set_provider(&env, &provider_data);
+
+        events::publish_provider_verified(&env, provider, caller, status);
+
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn update_provider(
+        env: Env,
+        caller: Address,
+        provider: Address,
+        name: Option<String>,
+        licenses: Option<Vec<License>>,
+        specialties: Option<Vec<String>>,
+        certifications: Option<Vec<Certification>>,
+        locations: Option<Vec<Location>>,
+    ) -> Result<(), ContractError> {
+        caller.require_auth();
+
+        if caller != provider && !rbac::has_permission(&env, &caller, &Permission::ManageUsers) {
+            return Err(ContractError::Unauthorized);
+        }
+
+        let mut provider_data =
+            provider::get_provider(&env, &provider).ok_or(ContractError::ProviderNotFound)?;
+
+        if let Some(new_name) = name {
+            provider_data.name = new_name;
+        }
+
+        if let Some(new_licenses) = licenses {
+            provider_data.licenses = new_licenses;
+        }
+
+        if let Some(new_specialties) = specialties {
+            for old_specialty in provider_data.specialties.iter() {
+                provider::remove_provider_from_specialty_index(&env, &old_specialty, &provider);
+            }
+            provider_data.specialties = new_specialties.clone();
+            for specialty in new_specialties.iter() {
+                provider::add_provider_to_specialty_index(&env, &specialty, &provider);
+            }
+        }
+
+        if let Some(new_certifications) = certifications {
+            provider_data.certifications = new_certifications;
+        }
+
+        if let Some(new_locations) = locations {
+            provider_data.locations = new_locations;
+        }
+
+        provider::set_provider(&env, &provider_data);
+
+        events::publish_provider_updated(&env, provider);
+
+        Ok(())
+    }
+
+    pub fn get_provider(env: Env, provider: Address) -> Result<Provider, ContractError> {
+        provider::get_provider(&env, &provider).ok_or(ContractError::ProviderNotFound)
+    }
+
+    pub fn search_providers_by_specialty(env: Env, specialty: String) -> Vec<Address> {
+        provider::get_providers_by_specialty(&env, &specialty)
+    }
+
+    pub fn search_providers_by_status(env: Env, status: VerificationStatus) -> Vec<Address> {
+        let all_ids = provider::get_all_provider_ids(&env);
+        let mut result = Vec::new(&env);
+
+        for i in 0..all_ids.len() {
+            if let Some(id) = all_ids.get(i) {
+                if let Some(provider_addr) = Self::get_provider_address_by_id(&env, id) {
+                    if let Ok(provider_data) =
+                        Self::get_provider(env.clone(), provider_addr.clone())
+                    {
+                        if provider_data.verification_status == status && provider_data.is_active {
+                            result.push_back(provider_addr);
+                        }
+                    }
+                }
+            }
+        }
+
+        result
+    }
+
+    pub fn get_provider_count(env: Env) -> u64 {
+        provider::get_provider_counter(&env)
+    }
+
+    fn get_provider_address_by_id(env: &Env, provider_id: u64) -> Option<Address> {
+        let id_key = (symbol_short!("PROV_ID"), provider_id);
+        env.storage().persistent().get(&id_key)
     }
 }
 
