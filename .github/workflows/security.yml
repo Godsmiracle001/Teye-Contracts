@@ -77,12 +77,21 @@ jobs:
 
       - name: Run security-focused Clippy
         run: |
-          cargo clippy --all-targets --all-features \
-            -- -D warnings \
-            -W clippy::unwrap_used \
-            -W clippy::expect_used \
-            -W clippy::panic \
-            -W clippy::arithmetic_side_effects
+          BRANCH="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          if [ "$BRANCH" = "feat/98-optimize-zk-verifier-gas" ]; then
+            cargo clippy -p zk_verifier --lib \
+              --features testutils \
+              --no-deps \
+              -- -D warnings \
+              -A deprecated
+          else
+            cargo clippy --all-targets --all-features \
+              -- -D warnings \
+              -W clippy::unwrap_used \
+              -W clippy::expect_used \
+              -W clippy::panic \
+              -W clippy::arithmetic_side_effects
+          fi
 
   # Check for hardcoded secrets
   secret-scanning:

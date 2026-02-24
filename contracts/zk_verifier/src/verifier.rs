@@ -68,13 +68,6 @@ fn g2_is_all_ones(point: &G2Point) -> bool {
         && bytes_all_ff(&point.y.1.to_array())
 }
 
-fn g1_to_bytes(point: &G1Point) -> [u8; 64] {
-    let mut out = [0u8; 64];
-    out[0..32].copy_from_slice(&point.x.to_array());
-    out[32..64].copy_from_slice(&point.y.to_array());
-    out
-}
-
 fn g2_to_bytes(point: &G2Point) -> [u8; 128] {
     let mut out = [0u8; 128];
     out[0..32].copy_from_slice(&point.x.0.to_array());
@@ -142,11 +135,7 @@ impl Bn254Verifier {
     }
 
     /// Verify a Groth16 proof over BN254.
-    pub fn verify_proof(
-        _env: &Env,
-        proof: &Proof,
-        public_inputs: &Vec<BytesN<32>>,
-    ) -> bool {
+    pub fn verify_proof(_env: &Env, proof: &Proof, public_inputs: &Vec<BytesN<32>>) -> bool {
         if public_inputs.is_empty() {
             return false;
         }

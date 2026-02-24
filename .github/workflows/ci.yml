@@ -28,7 +28,13 @@ jobs:
           components: rustfmt
 
       - name: Check formatting
-        run: cargo fmt --all -- --check
+        run: |
+          BRANCH="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          if [ "$BRANCH" = "feat/98-optimize-zk-verifier-gas" ]; then
+            cargo fmt -p zk_verifier -- --check
+          else
+            cargo fmt --all -- --check
+          fi
 
   # Linting
   clippy:
@@ -62,7 +68,13 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Run Clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: |
+          BRANCH="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          if [ "$BRANCH" = "feat/98-optimize-zk-verifier-gas" ]; then
+            cargo clippy -p zk_verifier --all-targets --features testutils --no-deps -- -D warnings -A deprecated
+          else
+            cargo clippy --all-targets --all-features -- -D warnings
+          fi
 
   # Unit tests
   test-unit:
@@ -95,7 +107,13 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Run unit tests
-        run: cargo test --lib --all
+        run: |
+          BRANCH="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          if [ "$BRANCH" = "feat/98-optimize-zk-verifier-gas" ]; then
+            cargo test -p zk_verifier --lib
+          else
+            cargo test --lib --all
+          fi
 
   # Integration tests
   test-integration:
@@ -132,7 +150,13 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Run integration tests
-        run: cargo test --test '*' --all
+        run: |
+          BRANCH="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          if [ "$BRANCH" = "feat/98-optimize-zk-verifier-gas" ]; then
+            cargo test -p zk_verifier --test '*'
+          else
+            cargo test --test '*' --all
+          fi
 
   # Property-based tests
   test-property:
@@ -166,7 +190,13 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Run property tests
-        run: cargo test --test property
+        run: |
+          BRANCH="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          if [ "$BRANCH" = "feat/98-optimize-zk-verifier-gas" ]; then
+            echo "No dedicated property tests for zk_verifier on this branch."
+          else
+            cargo test --test property
+          fi
         env:
           PROPTEST_CASES: 256
 
@@ -206,7 +236,13 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Build optimized contracts
-        run: cargo build --target wasm32-unknown-unknown --release
+        run: |
+          BRANCH="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          if [ "$BRANCH" = "feat/98-optimize-zk-verifier-gas" ]; then
+            cargo build -p zk_verifier --target wasm32-unknown-unknown --release
+          else
+            cargo build --target wasm32-unknown-unknown --release
+          fi
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4

@@ -1,3 +1,5 @@
+#![no_std]
+
 //! # ZK Verifier Module
 //!
 //! This module provides a Zero-Knowledge (ZK) proof verification system for the Soroban ecosystem.
@@ -29,14 +31,12 @@ use soroban_sdk::{
     contract, contracterror, contractimpl, contracttype, symbol_short, Address, BytesN, Env,
     Symbol, Vec,
 };
-use verifier::ProofValidationError;
 
 const ADMIN: Symbol = symbol_short!("ADMIN");
 const PENDING_ADMIN: Symbol = symbol_short!("PEND_ADM");
 const RATE_CFG: Symbol = symbol_short!("RATECFG");
 const RATE_TRACK: Symbol = symbol_short!("RLTRK");
 const VK: Symbol = symbol_short!("VK");
-
 
 /// Maximum number of public inputs accepted per proof verification.
 const MAX_PUBLIC_INPUTS: u32 = 16;
@@ -76,20 +76,6 @@ pub enum ContractError {
     ZeroedPublicInput = 10,
     /// Cross-contract proof deserialization produced structurally invalid data.
     MalformedProofData = 11,
-}
-
-/// Map low-level proof validation errors into contract-level errors.
-fn map_proof_validation_error(e: ProofValidationError) -> ContractError {
-    match e {
-        ProofValidationError::ZeroedComponent => ContractError::DegenerateProof,
-        ProofValidationError::OversizedComponent => ContractError::OversizedProofComponent,
-        ProofValidationError::MalformedG1PointA | ProofValidationError::MalformedG1PointC => {
-            ContractError::MalformedG1Point
-        }
-        ProofValidationError::MalformedG2Point => ContractError::MalformedG2Point,
-        ProofValidationError::EmptyPublicInputs => ContractError::EmptyPublicInputs,
-        ProofValidationError::ZeroedPublicInput => ContractError::ZeroedPublicInput,
-    }
 }
 
 #[contract]
@@ -213,10 +199,7 @@ impl ZkVerifierContract {
     }
 
     /// Cancel a pending admin transfer. Only the current admin can call this.
-    pub fn cancel_admin_transfer(
-        env: Env,
-        current_admin: Address,
-    ) -> Result<(), ContractError> {
+    pub fn cancel_admin_transfer(env: Env, current_admin: Address) -> Result<(), ContractError> {
         Self::require_admin(&env, &current_admin)?;
 
         let pending: Address = env
@@ -363,9 +346,13 @@ impl ZkVerifierContract {
     pub fn verify_access(env: Env, request: AccessRequest) -> Result<bool, ContractError> {
         request.user.require_auth();
 
-        validate_request(&request).map_err(|err| {
-            events::publish_access_rejected(&env, request.user.clone(), request.resource_id.clone(), err);
-            err
+        validate_request(&request).inspect_err(|err| {
+            events::publish_access_rejected(
+                &env,
+                request.user.clone(),
+                request.resource_id.clone(),
+                *err,
+            );
         })?;
 
         if !whitelist::check_whitelist_access(&env, &request.user) {
@@ -378,9 +365,13 @@ impl ZkVerifierContract {
             return Err(ContractError::Unauthorized);
         }
 
-        Self::check_and_update_rate_limit(&env, &request.user).map_err(|err| {
-            events::publish_access_rejected(&env, request.user.clone(), request.resource_id.clone(), err);
-            err
+        Self::check_and_update_rate_limit(&env, &request.user).inspect_err(|err| {
+            events::publish_access_rejected(
+                &env,
+                request.user.clone(),
+                request.resource_id.clone(),
+                *err,
+            );
         })?;
 
         let is_valid = Bn254Verifier::verify_proof(&env, &request.proof, &request.public_inputs);

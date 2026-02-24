@@ -17,6 +17,7 @@ use soroban_sdk::contracterror;
 #[cfg(feature = "std")]
 pub mod consent;
 pub mod admin_tiers;
+#[cfg(feature = "std")]
 pub mod keys;
 pub mod meta_tx;
 #[cfg(feature = "std")]
@@ -27,6 +28,7 @@ pub mod whitelist;
 pub use admin_tiers::*;
 #[cfg(feature = "std")]
 pub use consent::*;
+#[cfg(feature = "std")]
 pub use keys::*;
 pub use meta_tx::*;
 #[cfg(feature = "std")]
